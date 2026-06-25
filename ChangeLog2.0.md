@@ -1,8 +1,11 @@
 ### 主要更新内容:
 - SRA-Server 新增 API Key 认证，保护服务器安全。
 - SRA-cli 已发布到 PyPI，可直接安装使用。
+- 新增抽卡资源预测扩展，可根据当前资源、奖励指南、版本周期、月卡、深渊类刷新、周常奖励和前瞻兑换码估算当前版本结束前可获得的抽卡资源。 #208
 
 ### 功能调整：
+- 更新了任务结束后通知的截图页面，增加截图信息量。 #198
+- 更新了问候语。
 - 移除废弃的 `CurrencyWarsPolicy` 配置项。
 
 ### 问题修复：
@@ -18,7 +21,7 @@
 #### PyPI 上的 SRA
 - SRA-cli 已发布到 PyPI，提供更方便的使用方式。
 - 系统要求：
-  - Python 3.12 或更高版本
+  - Python 3.12
   - pipx 或 uv （可选）
   - 以管理员权限运行终端
 - 安装方法：
@@ -35,6 +38,7 @@
   - pipx 更新：`pipx upgrade starrailassistant`
   - uv 更新：`uv tool upgrade starrailassistant`
   - 更新后可能需要重新运行`init`命令以应用新配置。
+- 其他：请参阅 [SRA-cli 文档](https://starrailassistant.top/getstarted/advance.html#sracli)
 
 [已有 Mirror酱 CDK ？前往 Mirror酱 高速下载](https://mirrorchyan.com/zh/projects?rid=StarRailAssistant&source=sra-release)
 
