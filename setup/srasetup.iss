@@ -11,7 +11,7 @@ AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 VersionInfoVersion={#MyAppNumericVersion}
-UninstallDisplayName={#MyAppName} {#MyAppVersion}
+UninstallDisplayName={#MyAppName}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -26,7 +26,6 @@ SolidCompression=yes
 LicenseFile=SRA\LICENSE
 InfoBeforeFile=install_info.txt
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=output\
 OutputBaseFilename=StarRailAssistant_{#MyAppVersion}_Setup
 SetupIconFile=SRAicon.ico
@@ -43,12 +42,20 @@ Name: "chinesesimplified"; MessagesFile: "ChineseSimplified.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "addtopath"; Description: "Add to PATH (global access via SRA.exe)"; GroupDescription: "Environment:"; Flags: unchecked
+Name: "addtopath"; Description: "{cm:AddToPath}"; GroupDescription: "{cm:AddToPathGroup}"
 
 [Files]
 Source: "SRA\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Source: "SRA\cv2\*"; DestDir: "{app}\cv2"; Flags: ignoreversion nocompression recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
+
+[Registry]
+; 写入安装位置，便于 winget 等工具检测
+Root: HKLM; Subkey: "SOFTWARE\{#MyAppName}"; ValueType: string; ValueName: "InstallLocation"; ValueData: "{app}"; Flags: uninsdeletekey
+; 写入版本信息
+Root: HKLM; Subkey: "SOFTWARE\{#MyAppName}"; ValueType: string; ValueName: "Version"; ValueData: "{#MyAppVersion}"; Flags: uninsdeletekey
+; 为卸载程序补充 InstallLocation（winget 用于定位安装目录）
+Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppId}_is1"; ValueType: string; ValueName: "InstallLocation"; ValueData: "{app}"; Flags: uninsdeletekeyifempty
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -63,8 +70,7 @@ const
 
 procedure BroadcastEnvironmentChange;
 begin
-  SendMessage(HWND_BROADCAST, WM_SETTINGCHANGE, 0,
-    CastIntegerToLParam(CreateMsgRecipientParam('Environment')));
+  PostMessage(HWND_BROADCAST, WM_SETTINGCHANGE, 0, 0);
 end;
 
 procedure AddToPath(PathToAdd: string);
@@ -129,4 +135,3 @@ begin
   if CurUninstallStep = usUninstall then
     RemoveFromPath(ExpandConstant('{app}'));
 end;
-
