@@ -823,7 +823,12 @@
 
                                     <Grid ColumnDefinitions="Auto, *, Auto">
                                         <Label Classes="Icon">&#xED74;</Label>
-                                        <Label Grid.Column="1" Content="使用远程后端" />
+                                        <StackPanel Grid.Column="1">
+                                            <Label Content="使用外部 SRA 后端" />
+                                            <TextBlock FontSize="12"
+                                                       Opacity="0.72"
+                                                       Text="让 SRA.exe 连接另一台机器或另一个进程提供的 SRA 后端服务。" />
+                                        </StackPanel>
                                         <ToggleSwitch Grid.Column="2"
                                                       IsChecked="{Binding AdvancedSettings.IsRemoteEnabled}" />
                                     </Grid>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Threading.Tasks;
@@ -26,7 +26,6 @@ public partial class SettingsPageViewModel : PageViewModel
 
     private readonly SettingsService _settingsService;
     private readonly UpdateService _updateService;
-
     /// <inheritdoc />
     public SettingsPageViewModel(
         SettingsService settingsService,
@@ -302,7 +301,7 @@ public partial class SettingsPageViewModel : PageViewModel
     {
         _ = _commonModel.CheckDesktopShortcut(true);
     }
-
+    
     [RelayCommand]
     private void OpenFolder(string folder)
     {
@@ -350,8 +349,6 @@ public partial class SettingsPageViewModel : PageViewModel
             or nameof(Settings.General.GameArgsFullScreenMode))
             SetGameResolution();
     }
-
-    #region 通知测试
 
     [RelayCommand]
     private async Task TestEmailAsync()
@@ -507,10 +504,6 @@ public partial class SettingsPageViewModel : PageViewModel
             _commonModel.ShowErrorToast(title, errorMessage);
     }
 
-    #endregion
-
-
-
     #region 开发者模式多击版本号逻辑
 
     private int _versionClickCount;
@@ -535,10 +528,7 @@ public partial class SettingsPageViewModel : PageViewModel
         if (_versionClickCount < VersionClickRequiredCount)
         {
             if (_versionClickCount > 3)
-                _commonModel.ShowInfoToast("开发者模式",
-                    Settings.Advanced.IsDeveloperModeEnabled
-                        ? "您正处于开发者模式！"
-                        : $"只需再执行 {VersionClickRequiredCount - _versionClickCount} 次操作，即可进入开发者模式");
+                _commonModel.ShowInfoToast("开发者模式", Settings.Advanced.IsDeveloperModeEnabled ? "您正处于开发者模式！" : $"只需再执行 {VersionClickRequiredCount - _versionClickCount} 次操作，即可进入开发者模式。");
             return;
         }
 
@@ -551,3 +541,4 @@ public partial class SettingsPageViewModel : PageViewModel
 
     #endregion
 }
+
