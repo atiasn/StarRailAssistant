@@ -7,7 +7,7 @@ from tasks.img import DUIMG, IMG, RRIMG
 
 @task(order=2)
 class ReceiveRewardsTask(BaseTask):
-    def _post_init(self):
+    def __post_init__(self):
         self.config_name = self.config.Name
 
     def run(self):
@@ -161,6 +161,7 @@ class ReceiveRewardsTask(BaseTask):
             if not self.operator.wait_img(IMG.ENTER, timeout=4):
                 self.operator.press_key("esc")  # 有时需要再按一次
             return
+        self.operator.click_box(target, after_sleep=1)
         if self.operator.click_img(RRIMG.GIFT_RECEIVE) or self.operator.click_img(RRIMG.GIFT_RECEIVE2):
             logger.info("领取成功")
             self.operator.sleep(2)
