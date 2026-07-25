@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "starrailassistant"
-version = "2.18.3"
+version = "2.19.0-beta.1"
 description = "崩坏：星穹铁道自动化助手"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -30,7 +30,7 @@ dependencies = [
     "rich==15.0.0",
     "loguru==0.7.3",
     "selenium==4.44.0",
-    "cmd2==4.0.0",
+    "cmd2==4.1.2",
     "rapidocr==3.9.1",
     "onnxruntime==1.27.0",
     "pyautogui==0.9.54; os_name == 'nt'",
