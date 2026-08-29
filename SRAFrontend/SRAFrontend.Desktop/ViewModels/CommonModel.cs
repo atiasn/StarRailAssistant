@@ -4,11 +4,11 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Microsoft.Extensions.Logging;
 using SRAFrontend.Data;
+using SRAFrontend.Desktop.Controls;
 using SRAFrontend.Models;
 using SRAFrontend.Services;
 using SRAFrontend.Utils;
@@ -23,38 +23,32 @@ public class CommonModel(
     CacheService cacheService,
     UpdateService updateService,
     IBackendService backendService,
-    AnnouncementService announcementService,
+    AnnService annService,
     ILogger<CommonModel> logger,
     ISukiToastManager toastManager)
 {
     // 常量定义（避免魔法值）
     private const int ToastDisplayDuration = 5; // Toast 显示时长（秒）
-    
-    private AnnouncementList? _announcementList;
 
     public void ShowAnnouncementBoard()
     {
-        var dialog = new NativeWebDialog
+        SukiMessageBox.ShowDialog(new SukiMessageBoxHost
         {
-            Title = "公告",
-            Source = new Uri("https://starrailassistant.top/ann/updates/")
-        };
-        dialog.Resize(1024, 600);
-        dialog.Show();
+            Header = "公告",
+            Content = new AnnBoardViewModel
+            {
+                Announcements = annService.CachedAnnouncements?.Announcements
+            }
+        });
     }
 
     public async Task CheckAnnouncementAsync()
     {
-        _announcementList = await announcementService.GetAnnouncementsAsync();
-        if (_announcementList == null || _announcementList.Announcements.Count == 0)
+        if (await annService.HasNewAnnouncementsAsync(cacheService.Cache.LastViewAnnouncementId))
         {
-            logger.LogInformation("No announcements available");
-            return;
-        }
-
-        // 检查是否有新公告, 自动弹出公告栏
-        if (cacheService.Cache.LastViewAnnouncementId != _announcementList.Id)
             ShowAnnouncementBoard();
+            cacheService.Cache.LastViewAnnouncementId = annService.LatestAnnouncementId;
+        }
     }
 
     public async Task CheckForUpdatesAsync()
@@ -108,12 +102,9 @@ public class CommonModel(
             var manualUpgradeButton =
                 SukiMessageBoxButtonsFactory.CreateButton("手动更新", SukiMessageBoxResult.OK, "Flat Accent");
             var cancelButton = SukiMessageBoxButtonsFactory.CreateButton("忽略", SukiMessageBoxResult.Cancel);
-            var releaseNoteViewer = new SelectableTextBlock
+            var releaseNoteViewer = new ThemedMarkdownScrollViewer
             {
-                Text = response.Data.ReleaseNote,
-                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-                Margin = new Thickness(0, 10, 0, 10),
-                Width = 600
+                Markdown = response.Data.ReleaseNote
             };
             
             var result = await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
