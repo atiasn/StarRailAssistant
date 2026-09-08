@@ -7,7 +7,6 @@ from SRACore.operators.factory import OperatorFactory, OperatorType
 from SRACore.service.setting_service import SettingsService
 from SRACore.task import BaseTask, get_task_classes, task_registry
 from SRACore.thread.runner import Runner
-from SRACore.util import sys_util  # NOQA
 from SRACore.util.data_persister import load_cache, load_config
 from SRACore.util.errors import ThreadStoppedError
 from SRACore.util.logger import logger
@@ -22,10 +21,14 @@ class TaskManager(Runner):
 
     def __init__(self, settings_service: SettingsService):
         super().__init__()
-        self.task_list: list[type[BaseTask]] = get_task_classes()
         self.settings_service: SettingsService = settings_service
         self._recovery = TaskRecovery(settings_service.settings)
         logger.debug(f"Successfully load task: {self.task_list}")
+
+    @property
+    def task_list(self) -> list[type[BaseTask]]:
+        """实时从任务注册表获取任务类，确保热重载后运行的是最新代码"""
+        return get_task_classes()
 
     def run_in_thread(self, *args: Any) -> bool:
         """在线程中运行任务（非阻塞）"""

@@ -1,9 +1,7 @@
 import argparse
-import importlib
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 sys.path.append(os.getcwd())  # 将当前工作目录添加到 sys.path，以便导入 tasks
 
@@ -48,6 +46,7 @@ def main():
     if inline:
         sys.argv.remove('--inline')
     # 延迟导入 SRACli
+    from SRACore.util import dynamic_import
     dynamic_import("tasks")  # 动态导入 tasks 包下的所有模块
     from SRACore.cli2 import SRACli
     cli_instance = SRACli(settings_service)
@@ -113,15 +112,6 @@ def is_admin() -> bool:
         return ctypes.windll.shell32.IsUserAnAdmin() != 0  # NOQA
     return True
 
-
-def dynamic_import(package: str):
-    """动态导入模块"""
-    try:
-        # 扫描 package 包下的所有 .py 文件，导入每个模块
-        for file in Path(package).glob("*.py"):
-            importlib.import_module(f"{package}.{file.stem}")
-    except ModuleNotFoundError:
-        pass
 
 if __name__ == '__main__':
     main()

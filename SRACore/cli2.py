@@ -1,9 +1,9 @@
 import argparse
 import dataclasses
 import json
+import typing
 from collections.abc import Callable
 from typing import Any
-import typing
 
 import cmd2
 from loguru import logger
@@ -16,6 +16,7 @@ from SRACore.operators.factory import OperatorFactory, OperatorType
 from SRACore.runtime.event_listener import KeyboardListener
 from SRACore.service.setting_service import SettingsService
 from SRACore.thread.task_process import TaskManager
+from SRACore.util import reload_package
 from SRACore.util.const import VERSION, CORE
 
 
@@ -149,6 +150,43 @@ class SRACli(cmd2.Cmd):
                 str_buffer.append(f" {i['order']}: {i['id']} # {i['doc'] or 'No description'}")
             return "\n".join(str_buffer)
         self.ok(f"已注册 {len(items)} 个任务", items, formatter=format_item)
+
+    @staticmethod
+    def _build_task_reload_parser() -> cmd2.Cmd2ArgumentParser:
+        return SRACli.cmd2argumentparser_factory(description="重新导入任务模块，实现热重载")
+
+    @cmd2.as_subcommand_to("task", "reload", _build_task_reload_parser, help="重新导入任务模块，实现热重载")
+    def _task_reload(self, _: argparse.Namespace) -> None:
+        from pathlib import Path
+
+        from SRACore.task import task_registry
+
+        if self.task_manager.is_thread_running():
+            self.err("任务线程正在运行中，无法执行重载操作")
+            return
+
+        package_dir = Path("tasks")
+        if not package_dir.is_dir():
+            self.err(f"任务目录不存在: {package_dir.resolve()}")
+            return
+
+        before = set(task_registry.get_ids())
+        task_registry.clear()
+
+        reload_package("tasks")
+
+        after = set(task_registry.get_ids())
+        if not after:
+            self.err("重载完成，但没有已注册的任务")
+            return
+        added = sorted(after - before)
+        removed = sorted(before - after)
+        message = f"已重载任务，当前共 {len(after)} 个任务"
+        if added:
+            message += f"，新增: {', '.join(added)}"
+        if removed:
+            message += f"，移除: {', '.join(removed)}"
+        self.ok(message, {"tasks": task_registry.get_ids()})
 
     @staticmethod
     def _build_run_parser() -> cmd2.Cmd2ArgumentParser:
