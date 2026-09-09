@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -166,10 +166,22 @@ public class CommonModel(
 
     public async Task CleanupOldExeAsync()
     {
+        
         if (File.Exists(DataPath.SraOldExecutablePath))
         {
             logger.LogDebug("Cleaning up old executable file: SRA_old.exe");
-            await Task.Run(() => File.Delete(DataPath.SraOldExecutablePath));
+            await Task.Run(() =>
+            {
+                try
+                {
+                    File.Delete(DataPath.SraOldExecutablePath);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed to delete old executable file: SRA_old.exe");
+                    ShowErrorToast("清理旧文件失败", $"无法删除旧可执行文件：{e.Message}");
+                }
+            });
         }
     }
 
@@ -328,7 +340,7 @@ public class CommonModel(
                 var manualExtractButton =
                     SukiMessageBoxButtonsFactory.CreateButton("手动解压", SukiMessageBoxResult.Yes, "Flat");
                 var retryButton =
-                    SukiMessageBoxButtonsFactory.CreateButton("我知道了", SukiMessageBoxResult.OK, "Flat Accent");
+                    SukiMessageBoxButtonsFactory.CreateButton("退出程序", SukiMessageBoxResult.OK, "Flat");
                 var extractResult = await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
                 {
                     Header = "更新解压失败",
