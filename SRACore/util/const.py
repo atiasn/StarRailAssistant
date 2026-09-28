@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 # 基础的常量定义
-VERSION = "2.23.0-beta.2"  # 版本号
+VERSION = "2.23.2"  # 版本号
 CORE = f"{VERSION} on {sys.platform}"  # 核心版本信息
 
 AppRootDir = Path(__file__).parent.parent.parent.absolute()
@@ -25,8 +25,10 @@ if sys.platform == "win32":
     AppDataDir = Path(os.getenv("APPDATA", "")) / "SRA"
 else:
     AppDataDir = Path.home() / ".config" / "SRA"
+
+SettingsJson = AppDataDir / "settings.json"
 ConfigsDir = AppDataDir / "configs"
 CacheDir = AppDataDir / "cache"
-LogsDir = Path("log")
+LogsDir = Path("log").absolute()
 LogsOCRDir = LogsDir / "ocr"
 LogsScreenshotDir = LogsDir / "screenshot"
