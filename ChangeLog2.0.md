@@ -10,17 +10,32 @@
 
 - 货币战争-刷开局改用正则表达式匹配，避免子字符串匹配的不准确问题。
 - 新增攻略导入相关命令行指令及前端交互逻辑，支持从文件导入JSON格式的攻略到本地策略目录。
+- 「使用Python后端」升级为「启用自定义后端」：通过命令/可执行文件 + 启动参数 + 工作目录三个配置项，即可覆盖 `python main.py`、`python -m SRACore`、`sra-cli`（pip 安装后的命令）、`uv` 等所有启动方式。
+- 新增任务完成后注销当前用户的功能。
 
 ### 问题修复：
 - 修复了pyautogui failsafe问题。
 - 修复了自动检测到的游戏路径没有落盘的问题。
 - 修复了启动游戏任务时，卡在退出登录弹窗的问题。
+- 修复了特定情况下，任务完成后任务崩溃的问题。
 
 ### 更新说明：
 
 #### 破坏性变更
 
 - 货币战争-刷开局改用正则表达式匹配，这将改变匹配逻辑，可能会影响旧配置的正常运行。
+- 「使用Python后端」已升级为「启用自定义后端」，请根据新配置项重新配置后端。
+
+#### 自定义后端说明
+- 设置页「开发者」区域的「启用自定义后端」现支持三个配置项：
+  - **命令/可执行文件**：如 `python`、`sra-cli`、`uv`，或可执行文件的完整路径（含 `/`、`\` 时校验文件存在，PATH 命令交由系统解析）。
+  - **启动参数**：如 `main.py`、`-m SRACore`，留空表示无参数。
+  - **工作目录**：留空则使用程序当前目录。
+- 常见组合：
+  - 脚本运行：命令 `python` + 参数 `main.py`
+  - 模块运行：命令 `python` + 参数 `-m SRACore`
+  - pip 安装后：命令 `sra-cli` + 参数留空
+  - uv 运行：命令 `uv` + 参数按需填写
 
 #### 货币战争-刷开局说明
 - 货币战争-刷开局现在使用正则表达式匹配，以实现更丰富的匹配逻辑。
@@ -60,10 +75,10 @@
 [已有 Mirror酱 CDK ？前往 Mirror酱 高速下载](https://mirrorchyan.com/zh/projects?rid=StarRailAssistant&source=sra-release)
 
 下载说明: 
-- StarRailAssistant_vX.X.X.zip - 主程序包（推荐）
-- StarRailAssistant_vX.X.X_Setup.exe - 主程序安装包（推荐）
-- StarRailAssistant_Core*.zip - 核心包（需要手动配置）
-- StarRailAssistant_Lite*.zip - 轻量版（需要手动安装和配置 Python 环境）
+- [StarRailAssistant_v${VERSION}.zip](https://github.com/StarRailAssistant/StarRailAssistant/releases/download/v${VERSION}/StarRailAssistant_v${VERSION}.zip) - 主程序包（推荐）
+- [StarRailAssistant_v${VERSION}_Setup.exe](https://github.com/StarRailAssistant/StarRailAssistant/releases/download/v${VERSION}/StarRailAssistant_v${VERSION}_Setup.exe) - 主程序安装包（推荐）
+- [StarRailAssistant_Core_${VERSION}.zip](https://github.com/StarRailAssistant/StarRailAssistant/releases/download/v${VERSION}/StarRailAssistant_Core_${VERSION}.zip) - 核心包（需要手动配置）
+- [StarRailAssistant_Lite_${VERSION}.zip](https://github.com/StarRailAssistant/StarRailAssistant/releases/download/v${VERSION}/StarRailAssistant_Lite_${VERSION}.zip) - 轻量版（需要手动安装和配置 Python 环境）
 
 需要安装 [.NET 桌面运行时 10.0](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0) 才能运行
 如果你需要使用SRA-server（提供HTTP接口、MCP服务器和WebUI），你必须安装`ASP.NET Core 运行时 10.0`。或`.NET SDK 10.0`。
