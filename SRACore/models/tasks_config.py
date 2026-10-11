@@ -156,11 +156,12 @@ class CosmicStrifeConfig:
     isCurrencyWarsEnabled: bool = False
     currencyWarsDifficulty: int = 0
     currencyWarsMode: int = 0
+    isCurrencyWarsPointRewardsEnabled: bool = False
     currencyWarsRerollBossAffixes: str = ""
     currencyWarsRerollBossNames: str = ""
     currencyWarsRerollInvestEnvironments: str = ""
     currencyWarsRerollInvestStrategies: str = ""
-    currencyWarsRuntimes: int = 0
+    currencyWarsRuntimes: int = 1
     currencyWarsStrategy: str = "template"
     currencyWarsStrategyIndex: int = 0
     currencyWarsUsername: str = ""
@@ -177,6 +178,7 @@ class CosmicStrifeConfig:
             "currencyWars.enabled": self.isCurrencyWarsEnabled,
             "currencyWars.difficulty": self.currencyWarsDifficulty,
             "currencyWars.mode": self.currencyWarsMode,
+            "currencyWars.pointRewards": self.isCurrencyWarsPointRewardsEnabled,
             "currencyWars.reroll.bossAffixes": self.currencyWarsRerollBossAffixes,
             "currencyWars.reroll.bossNames": self.currencyWarsRerollBossNames,
             "currencyWars.reroll.investEnvironments": self.currencyWarsRerollInvestEnvironments,
@@ -200,11 +202,12 @@ class CosmicStrifeConfig:
             "isCurrencyWarsEnabled": data.get("currencyWars.enabled", False),
             "currencyWarsDifficulty": data.get("currencyWars.difficulty", 0),
             "currencyWarsMode": data.get("currencyWars.mode", 0),
+            "isCurrencyWarsPointRewardsEnabled": data.get("currencyWars.pointRewards", False),
             "currencyWarsRerollBossAffixes": data.get("currencyWars.reroll.bossAffixes", ""),
             "currencyWarsRerollBossNames": data.get("currencyWars.reroll.bossNames", ""),
             "currencyWarsRerollInvestEnvironments": data.get("currencyWars.reroll.investEnvironments", ""),
             "currencyWarsRerollInvestStrategies": data.get("currencyWars.reroll.investStrategies", ""),
-            "currencyWarsRuntimes": data.get("currencyWars.runtimes", 0),
+            "currencyWarsRuntimes": data.get("currencyWars.runtimes", 1),
             "currencyWarsStrategy": data.get("currencyWars.strategy", "template"),
             "currencyWarsStrategyIndex": data.get("currencyWars.strategyIndex", 0),
             "currencyWarsUsername": data.get("currencyWars.username", ""),
