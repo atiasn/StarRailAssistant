@@ -1,3 +1,4 @@
+import { i18n, tr } from '@/locales'
 import axios, { type AxiosRequestConfig, type AxiosInstance } from 'axios'
 
 // axios 扩展：
@@ -26,7 +27,7 @@ export class ApiError extends Error {
   readonly canceled: boolean
 
   constructor(message: string, status?: number, canceled = false) {
-    super(message)
+    super(tr(message))
     this.name = 'ApiError'
     this.status = status
     this.canceled = canceled
@@ -76,25 +77,25 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 export function statusMessage(status: number): string {
   switch (status) {
     case 400:
-      return '请求参数无效'
+      return i18n.global.t('http.badRequest')
     case 401:
-      return '未授权，请先完成认证'
+      return i18n.global.t('http.unauthorized')
     case 403:
-      return '没有访问权限'
+      return i18n.global.t('http.forbidden')
     case 404:
-      return '资源不存在'
+      return i18n.global.t('http.notFound')
     case 409:
-      return '资源已存在或状态冲突'
+      return i18n.global.t('http.conflict')
     case 422:
-      return '请求校验失败'
+      return i18n.global.t('http.validationFailed')
     case 500:
-      return '服务器内部错误'
+      return i18n.global.t('http.serverError')
     case 502:
     case 503:
     case 504:
-      return '服务暂不可用，请稍后重试'
+      return i18n.global.t('http.unavailable')
     default:
-      return `请求失败（HTTP ${status}）`
+      return i18n.global.t('http.statusFailed', [status])
   }
 }
 
@@ -108,10 +109,10 @@ function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err
 
   if (axios.isAxiosError(err)) {
-    if (err.code === 'ERR_CANCELED') return new ApiError('请求已取消', undefined, true)
+    if (err.code === 'ERR_CANCELED') return new ApiError(i18n.global.t('http.canceled'), undefined, true)
     if (err.code === 'ECONNABORTED')
-      return new ApiError('请求超时，请检查后端服务是否可用', err.response?.status)
-    if (!err.response) return new ApiError('网络异常，无法连接到后端服务')
+      return new ApiError(i18n.global.t('http.timeout'), err.response?.status)
+    if (!err.response) return new ApiError(i18n.global.t('http.networkError'))
 
     const status = err.response.status
     const body: unknown = err.response.data
@@ -156,7 +157,7 @@ export function createHttpClient(): AxiosInstance {
         typeof body.success === 'boolean' &&
         !body.success
       ) {
-        throw new ApiError(body.message || '请求失败', response.status)
+        throw new ApiError(body.message || i18n.global.t('http.requestFailed'), response.status)
       }
       return response
     },
