@@ -40,7 +40,7 @@ public partial class GeneralSettings : ObservableObject
     [ObservableProperty]
     [property: JsonPropertyName("gameArgs.enabled")]
     [property: Description("是否启用游戏启动参数，启用后将使用下面的参数启动游戏")]
-    private bool _isGameArgsEnabled;
+    private bool _isGameArgsEnabled = true;
 
     [ObservableProperty]
     [property: JsonPropertyName("gameArgs.fullScreenMode")]
