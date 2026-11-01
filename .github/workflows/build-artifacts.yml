@@ -89,8 +89,21 @@ jobs:
             pip-${{ runner.os }}-
 
       - name: Built with package.py
+        # Cloudflare R2 凭据：package.py 用于上传 WebUI 包与资源包，缺失时会跳过上传
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_API_TOKEN: ${{ secrets.R2_API_TOKEN }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: |
           python scripts/package.py
+
+      # 启动器由 MSVC 现场编译；工具链缺失时 package.py 只会告警跳过，这里显式兜底
+      - name: Verify SRA-cli.exe launcher
+        run: |
+          if (-not (Test-Path "main.dist\SRA-cli.exe")) {
+            throw "SRA-cli.exe launcher was not built. Ensure the runner has an MSVC C++ toolchain."
+          }
+          Get-Item "main.dist\SRA-cli.exe" | Format-List Name, Length
 
       - name: Read version
         id: read_version

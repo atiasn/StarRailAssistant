@@ -7,7 +7,7 @@ namespace SRAFrontend.Models;
 
 public class AppSettings
 {
-    public const string Version = "2.25.0-beta.2"; // 应用版本号
+    public const string Version = "2.25.0-beta.3"; // 应用版本号
 
     [JsonPropertyName("general"), Description("通用设置")] public GeneralSettings General { get; init; } = new();
 
@@ -531,7 +531,7 @@ public partial class AdvancedSettings : ObservableObject
     [ObservableProperty]
     [property: JsonPropertyName("backend.remote.baseUrl")]
     [property: Description("远程后端地址")]
-    private string _remoteBaseUrl = "http://localhost:5000";
+    private string _remoteBaseUrl = "http://localhost:5073";
 
     [ObservableProperty]
     [property: JsonPropertyName("developerMode.overlay")]
