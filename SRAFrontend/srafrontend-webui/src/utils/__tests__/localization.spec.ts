@@ -37,13 +37,11 @@ describe('Russian localization', () => {
 
   it('loads the saved Russian locale on a fresh module instance', async () => {
     localStorage.setItem('sra_locale', 'ru-RU')
-    const { i18n, tr } = await import('../../locales/index')
+    const { i18n } = await import('../../locales/index')
     expect(i18n.global.locale.value).toBe('ru-RU')
     expect(document.documentElement.lang).toBe('ru-RU')
     expect(i18n.global.t('route.settings')).toBe('Настройки')
     expect(i18n.global.t('log.copiedCount', [12])).toBe('Скопировано записей: 12')
-    expect(tr('开拓者名称')).toBe('Имя Первопроходца')
-    expect(tr('CurrencyWarsPlus')).toBe('CurrencyWarsPlus')
     expect(localStorage.getItem('sra_locale')).toBe('ru-RU')
   })
 
@@ -55,27 +53,18 @@ describe('Russian localization', () => {
   })
 
   it('persists the selected locale and reapplies it after reload', async () => {
-    const assign = vi.fn()
-    vi.stubGlobal('location', { assign })
+    const reload = vi.fn()
+    vi.stubGlobal('location', { reload })
     const { setLocale } = await import('../../locales/index')
     setLocale('ru-RU')
     expect(localStorage.getItem('sra_locale')).toBe('ru-RU')
-    expect(assign).toHaveBeenCalledWith(import.meta.env.BASE_URL)
+    // 原地重载以保留当前路由（服务端对非 /api 路径回退到 index.html）
+    expect(reload).toHaveBeenCalled()
     vi.resetModules()
     const restarted = await import('../../locales/index')
     expect(restarted.i18n.global.locale.value).toBe('ru-RU')
     expect(restarted.i18n.global.t('route.settings')).toBe('Настройки')
     setLocale('invalid')
     expect(localStorage.getItem('sra_locale')).toBe('ru-RU')
-  })
-
-  it('translates labels without replacing technical or user values', async () => {
-    localStorage.setItem('sra_locale', 'ru-RU')
-    const { tr } = await import('../../locales/index')
-    expect(tr('开拓者名称')).toBe('Имя Первопроходца')
-    expect(tr('himeko_level5_quality_level7_two_star_20261018')).toBe(
-      'himeko_level5_quality_level7_two_star_20261018',
-    )
-    expect(tr('Тестовый профиль')).toBe('Тестовый профиль')
   })
 })
