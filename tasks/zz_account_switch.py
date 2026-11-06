@@ -1,4 +1,4 @@
-"""SRA 账号切号插件（免密码）v2.6.2。
+"""SRA 账号切号插件（免密码）v2.6.4。
 
 放入 SRA 的 tasks/ 目录即生效。目标账号来源按优先级：
 1. AUTO-MAS 花名册：被 MAS 拉起时从命令行的 sra-config 路径反查
@@ -20,9 +20,37 @@ import re
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 from SRACore.util import encryption
 from SRACore.util.logger import logger
+
+_raw_logger = logger
+
+# 本插件只对自身输出降级：全局 setup_logger(level="INFO") 会 logger.remove() 重建全部 sink，
+# 既吞掉别处的 DEBUG 日志（服务端冒烟测试靠 "Successfully load task" 判断任务是否加载），
+# 也会删掉服务端 SSE 日志流 sink。放 zz_debug.txt 可恢复本插件自身的 DEBUG 输出。
+_DEBUG_ENABLED = (Path.cwd() / "zz_debug.txt").exists()
+
+
+class _ScopedLogger:
+    """按级别过滤的 logger 代理：仅影响本插件自己的日志调用，不动全局配置。"""
+
+    _LEVELS = {"TRACE": 0, "DEBUG": 1, "INFO": 2, "SUCCESS": 3,
+               "WARNING": 4, "ERROR": 5, "CRITICAL": 6}
+
+    def __init__(self, sink: Any, min_level: str = "INFO") -> None:
+        self._sink = sink
+        self._min = self._LEVELS.get(min_level.upper(), 2)
+
+    def __getattr__(self, name: str):
+        level = self._LEVELS.get(name.upper())
+        if level is not None and level < self._min:
+            return lambda *args, **kwargs: None
+        return getattr(self._sink, name)
+
+
+logger = _ScopedLogger(_raw_logger, "DEBUG" if _DEBUG_ENABLED else "INFO")
 
 try:
     from tasks.StartGameTask import LoginStatus, StartGameTask
@@ -243,6 +271,18 @@ def _check_verified(self, target: str) -> bool:
     except Exception:
         pass
     return False
+
+
+def _save_error_shot(self, tag: str) -> None:
+    """失败现场截图留证：log/zz_error/<时间戳>_<tag>.png，失败静默不影响主流程"""
+    try:
+        d = Path.cwd() / "log" / "zz_error"
+        d.mkdir(parents=True, exist_ok=True)
+        p = d / f"{time.strftime('%Y%m%d-%H%M%S')}_{tag}.png"
+        self.operator.screenshot(save_path=str(p))
+        logger.warning(f"[切号] 失败现场已截图: log/zz_error/{p.name}")
+    except Exception:
+        pass
 
 
 def _wait_entered(self) -> int:
@@ -602,32 +642,8 @@ def _ocr_shown_account(self) -> str:
     return ""
 
 
-def _mas_switch_login(self, target: str) -> int:
-    """花名册模式登录：核对/切换到目标账号后再进游戏"""
-    state = self._detect_login_state()
-    if state is None:
-        logger.error("[切号] 未等到登录界面，交由 AUTO-MAS 重试")
-        return -1
-    if state == LoginStatus.NEW_VERSION_PAGE:
-        logger.error("[切号] 游戏需要更新，交由 AUTO-MAS 重试")
-        return -1
-    if state == LoginStatus.LOGIN_PAGE:
-        shown = _ocr_shown_account(self)
-        if shown and _match(target, shown):
-            logger.info(f"[切号] 记住账号 {shown} 与目标一致，直接登录")
-            r = _quick_login(self)
-            if r == 1:
-                _mark_verified(self, target)
-            return r
-        logger.info(f"[切号] 记住账号({shown or '未识别'}) ≠ 目标，执行切号")
-        if _switch_by_history(self, target):
-            r = _wait_entered(self)
-            if r == 1:
-                _mark_verified(self, target)
-            return r
-        logger.error("[切号] 切号失败，交由 AUTO-MAS 重试")
-        return -1
-    # 已在游戏主界面：核对过且目标一致则沿用，否则登出重核
+def _handle_entered(self, target: str, state) -> int:
+    """已登录状态处理：核对过则沿用，否则登出重切"""
     if _check_verified(self, target):
         logger.info("[切号] 游戏内会话为已核对的目标账号，沿用")
         return int(state)
@@ -638,7 +654,47 @@ def _mas_switch_login(self, target: str) -> int:
             _mark_verified(self, target)
         return r
     logger.error("[切号] 登出/切号失败，沿用当前登录状态（错号风险）")
+    _save_error_shot(self, "logout_switch_fail")
     return int(state)
+
+
+def _mas_switch_login(self, target: str) -> int:
+    """花名册模式登录：核对/切换到目标账号后再进游戏"""
+    state = self._detect_login_state()
+    if state is None:
+        logger.error("[切号] 未等到登录界面，交由 AUTO-MAS 重试")
+        return -1
+    if state == LoginStatus.NEW_VERSION_PAGE:
+        logger.error("[切号] 游戏需要更新，交由 AUTO-MAS 重试")
+        return -1
+    if state != LoginStatus.LOGIN_PAGE:
+        return _handle_entered(self, target, state)
+    shown = _ocr_shown_account(self)
+    if shown and _match(target, shown):
+        logger.info(f"[切号] 记住账号 {shown} 与目标一致，直接登录")
+        r = _quick_login(self)
+        if r == 1:
+            _mark_verified(self, target)
+        return r
+    logger.info(f"[切号] 记住账号({shown or '未识别'}) ≠ 目标，执行切号")
+    try:
+        switched = _switch_by_history(self, target)
+    except RuntimeError:
+        # 「登录」命中可能是自动登录过场的瞬时态（记忆密码登录页一闪即进主界面），
+        # 复核真实状态：已在游戏内则按已登录处理，其余维持报错交 MAS 重试
+        state2 = self._detect_login_state()
+        if state2 is None or state2 == LoginStatus.LOGIN_PAGE:
+            raise
+        logger.info("[切号] 登录页等待超时但游戏已在主界面，按已登录复核处理")
+        return _handle_entered(self, target, state2)
+    if switched:
+        r = _wait_entered(self)
+        if r == 1:
+            _mark_verified(self, target)
+        return r
+    logger.error("[切号] 切号失败，交由 AUTO-MAS 重试")
+    _save_error_shot(self, "switch_fail")
+    return -1
 
 
 if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False):
@@ -675,6 +731,7 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
                     _FLOW_LOGGED_AT = time.time()
                     return _switch_by_history(self, hint)
                 except Exception as e:
+                    _save_error_shot(self, "hint_switch_error")
                     logger.error(f"[切号] 切号流程异常，放弃自动登录: {e!r}")
                     return False
             logger.error("[切号] 登录账密未设置且 account_hint.txt 为空")
@@ -697,6 +754,7 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
         try:
             return _mas_switch_login(self, target)
         except Exception as e:
+            _save_error_shot(self, "mas_switch_error")
             logger.error(f"[切号] 花名册切号流程异常: {e!r}，交由 AUTO-MAS 重试")
             return -1
 
@@ -722,6 +780,7 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
                         logger.warning("[切号] 未能读取游戏内 UID，插件登录会话放行")
                         return r
                     logger.error("[切号] 沿用会话且读不到 UID，宁报错勿错号")
+                    _save_error_shot(self, "uid_unreadable")
                     return False
                 umap = _load_uid_map()  # 只读一次，target/owner 共用
                 want = _target_uid(target, umap)
@@ -742,6 +801,7 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
                     _record_uid(self, target, got)
                 return r
             except Exception as e:
+                _save_error_shot(self, "uid_check_error")
                 logger.error(f"[切号] UID 校验流程异常: {e!r}")
                 return False
         finally:
@@ -754,6 +814,7 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
         _FLOW_LOGGED_AT = 0.0
         if _retry_count >= 2:
             logger.error("[切号] 重切 2 次 UID 仍不匹配，请核对 zz_uid_map.txt")
+            _save_error_shot(self, "uid_mismatch")
             return False
         if not _safe_logout(self):
             return False
@@ -764,13 +825,7 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
             logger.error(f"[切号] 重切流程异常: {e!r}，交由 AUTO-MAS 重试")
             return False
 
-    # CLI 默认 --log-level TRACE，OCR 坐标/模板探测刷屏；降为 INFO（放 zz_debug.txt 可恢复）
-    if not (Path.cwd() / "zz_debug.txt").exists():
-        try:
-            from SRACore.util.logger import setup_logger
-            setup_logger(level="INFO")
-        except Exception:
-            pass
+    # 日志降级已在模块导入时按插件自身作用域处理（见 _ScopedLogger），此处不再动全局配置
     if _orig_fill is not None:
         StartGameTask._fill_credentials = _fill_credentials
     if _orig_login is not None:
@@ -802,6 +857,6 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
     StartGameTask._mask_acct = staticmethod(_mask_acct)
     StartGameTask._mask_text = staticmethod(_mask_text)
     StartGameTask._zz_patched = True  # 幂等标记：防热重载/二次 import 后 _orig_login 捕获到已打补丁的方法
-    logger.info("[切号] 插件已启用 v2.6.2")
+    logger.info("[切号] 插件已启用 v2.6.4")
 elif StartGameTask is not None:
     logger.warning("[切号] 插件已挂载过，跳过重复加载")
