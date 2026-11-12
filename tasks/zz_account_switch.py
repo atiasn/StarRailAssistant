@@ -1,9 +1,11 @@
-"""SRA 账号切号插件（免密码）v2.6.7。
+"""SRA 账号切号插件（免密码）v2.6.9。
 
 放入 SRA 的 tasks/ 目录即生效。目标账号来源按优先级：
 1. AUTO-MAS 花名册：被 MAS 拉起时从命令行的 sra-config 路径反查
-   config/ScriptConfig.json，解密该用户 Info.Id 作为目标账号。
+   config/scripts.yaml（旧版为 config/ScriptConfig.json），解密该用户
+   Info.Id 作为目标账号；v2 配置里的 Id 带 DPAPI: 前缀。
 2. account_hint.txt（手动跑 SRA 时兜底）：支持脱敏片段/完整手机号/邮箱。
+   它是全局单值，MAS 多账号场景下绝不顶替花名册。
 3. 挂机守护脚本置环境变量 ZZ_SRA_OVERNIGHT=1 时，直接用 account_hint.txt
    走花名册那条「账号选择页选号 → 客户端回填密码」路径（无 sra-config 也能切号）。
 
@@ -27,6 +29,18 @@ from typing import Any
 
 from SRACore.util import encryption
 from SRACore.util.logger import logger
+
+try:
+    from SRACore.util.errors import ThreadStoppedError as _ThreadStoppedError
+except Exception:
+    _ThreadStoppedError = None  # 旧版 SRA 没有该模块，不能让硬导入拖垮整个插件
+
+
+def _is_thread_stopped(e: BaseException) -> bool:
+    """任务停止信号：优先用上游异常类，旧版/离线桩按类名兜底，绝不静默吞掉"""
+    if _ThreadStoppedError is not None and isinstance(e, _ThreadStoppedError):
+        return True
+    return any(c.__name__ == "ThreadStoppedError" for c in type(e).__mro__)
 
 _raw_logger = logger
 
@@ -79,6 +93,7 @@ _VERIFIED_TTL = 900  # 已核对标记有效期（秒）
 _MAS_TARGET = ""
 _MAS_USER = ""  # 花名册用户名，zz_uid_map.txt 的优先键
 _MAS_RESOLVED = False
+_MAS_CONTEXT_OK = False  # 本进程确由 MAS 拉起；花名册失效时用于禁止 hint 顶替
 _FLOW_LOGGED_AT = 0.0  # 插件本次登录的时间戳；0=非插件登录
 _FLOW_WINDOW = 600  # fresh 判定窗口（秒）：hint 手动路径在切号前打点，最坏需覆盖
 # 切号+等进游戏+UID 读取全程（约 375s），防时间戳残留导致跨任务误判
@@ -181,7 +196,11 @@ def _match(hint: str, raw: str) -> bool:
 
 
 def _mas_context():
-    """从命令行找 MAS 下发的临时配置路径 → (MAS根目录, 用户uid)"""
+    """从命令行找 MAS 下发的临时配置路径 → (MAS根目录, 用户uid)。
+
+    MAS 配置 v2 迁移后 ScriptConfig.json 已并入 scripts.yaml，这里只解析路径，
+    花名册文件是否存在交给 _load_roster_info() 判断。
+    """
     for arg in sys.argv:
         if "sra-config" not in arg.lower():
             continue
@@ -194,14 +213,14 @@ def _mas_context():
             continue
         i = low.index("sra-config")
         if i >= 2 and low[i - 1] == "hsr" and low[i - 2] == "data" and len(parts) >= i + 3:
-            root = Path(*parts[: i - 2])
-            if (root / "config" / "ScriptConfig.json").is_file():
-                return root, parts[i + 2]
+            uid = parts[i + 2]
+            if "-" in uid and not uid.lower().endswith(".json"):
+                return Path(*parts[: i - 2]), uid
     return None
 
 
 def _find_user(node, uid):
-    """在 ScriptConfig.json 里递归找 uid 对应的用户 Info 节点"""
+    """在花名册（旧 JSON 或新 scripts.yaml 解析出的对象）里递归找 uid 对应的 Info 节点"""
     if isinstance(node, dict):
         for k, v in node.items():
             if k == uid and isinstance(v, dict) and isinstance(v.get("Info"), dict):
@@ -215,6 +234,69 @@ def _find_user(node, uid):
             if r is not None:
                 return r
     return None
+
+
+def _yaml_scalar(v: str) -> str:
+    """取 YAML 标量：去首尾空白与成对引号"""
+    v = (v or "").strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
+        v = v[1:-1]
+    return v
+
+
+def _yaml_user_info(text: str, uid: str):
+    """无 PyYAML 时的轻量兜底：只按缩进取 <uid> → Info → Id/Name。
+
+    scripts.yaml 里 Id 是单行 DPAPI 密文，不需要完整 YAML 解析。
+    """
+    base = info_indent = None
+    info = {}
+    for line in (text or "").splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if base is None:
+            if (s.startswith(uid + ":") or s.startswith("'" + uid + "':")
+                    or s.startswith('"' + uid + '":')):
+                base = indent
+            continue
+        if indent <= base:
+            break
+        if info_indent is None:
+            if s.startswith("Info:"):
+                info_indent = indent
+            continue
+        if indent <= info_indent:
+            break
+        m = re.match(r"(Id|Name)\s*:\s*(.*)$", s)
+        if m:
+            info[m.group(1)] = _yaml_scalar(m.group(2))
+    return info or None
+
+
+def _load_roster_info(root: Path, uid: str):
+    """查花名册用户 Info：scripts.yaml 优先，仅文件不存在时读旧 JSON。
+
+    PyYAML 可用就整表解析，不可用（或解析异常）退回轻量缩进解析。
+    """
+    yml = root / "config" / "scripts.yaml"
+    if not yml.is_file():
+        legacy = root / "config" / "ScriptConfig.json"
+        if legacy.is_file():
+            return _find_user(json.loads(legacy.read_text(encoding="utf-8-sig")), uid)
+        return None
+    text = yml.read_text(encoding="utf-8-sig")
+    try:
+        import yaml
+        info = _find_user(yaml.safe_load(text), uid)
+        if info is not None:
+            return info
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.warning(f"[切号] scripts.yaml 解析异常，改用轻量解析: {e!r}")
+    return _yaml_user_info(text, uid)
 
 
 class _DATA_BLOB(ctypes.Structure):
@@ -237,6 +319,8 @@ def _dpapi_decrypt(b64s: str) -> str:
 
 def _decrypt_mas_id(enc: str) -> str:
     enc = (enc or "").strip()
+    if enc[:6].upper() == "DPAPI:":  # MAS v2 的 scripts.yaml 给密文加了前缀
+        enc = enc[6:].strip()
     if not enc:
         return ""
     if not enc.startswith("AQAA"):  # 非 DPAPI 密文视为明文
@@ -255,7 +339,7 @@ def _decrypt_mas_id(enc: str) -> str:
 
 def _mas_target() -> str:
     """花名册目标账号，每进程只解析一次；非 MAS 拉起返回空"""
-    global _MAS_TARGET, _MAS_USER, _MAS_RESOLVED
+    global _MAS_TARGET, _MAS_USER, _MAS_RESOLVED, _MAS_CONTEXT_OK
     if _MAS_RESOLVED:
         return _MAS_TARGET
     _MAS_RESOLVED = True
@@ -263,23 +347,37 @@ def _mas_target() -> str:
         ctx = _mas_context()
         if ctx is None:
             return ""
+        _MAS_CONTEXT_OK = True
         root, uid = ctx
-        cfg = json.loads((root / "config" / "ScriptConfig.json").read_text(encoding="utf-8-sig"))
-        info = _find_user(cfg, uid)
+        info = _load_roster_info(root, uid)
         if info is None:
-            logger.warning("[切号] 花名册中未找到当前用户，跳过切号")
+            logger.error("[切号] MAS 花名册中未找到当前用户，拒绝沿用记住的账号")
             return ""
         name = info.get("Name", "?")
         acct = _decrypt_mas_id(info.get("Id", ""))
         if not acct:
-            logger.warning(f"[切号] 用户「{name}」账号为空或解密失败，跳过切号")
+            logger.error(f"[切号] 用户「{name}」账号为空或解密失败，拒绝沿用记住的账号")
             return ""
         logger.info(f"[切号] 目标账号 {name} {_mask_acct(acct)}")
         _MAS_TARGET = acct
         _MAS_USER = name
     except Exception as e:
-        logger.warning(f"[切号] 读取花名册失败，跳过切号: {e}")
+        logger.warning(f"[切号] 读取花名册失败，拒绝沿用记住的账号: {e}")
     return _MAS_TARGET
+
+
+def _uid_check_target() -> str:
+    """UID 终验的目标账号：花名册优先，非 MAS 场景才允许 hint 兜底。
+
+    account_hint.txt 是全局单值，MAS 多账号下拉起时若花名册解析失败，
+    绝不能拿它顶替（会算成别的号，目标和实际一起错、日志反显「校验通过」）。
+    """
+    t = _mas_target()
+    if t:
+        return t
+    if _MAS_CONTEXT_OK:
+        return ""
+    return _load_hint()
 
 
 def _mark_verified(self, target: str) -> None:
@@ -717,6 +815,7 @@ def _switch_by_history(self, hint: str) -> bool:
                 return True
         logger.error(f"[切号] 下拉中未找到账号「{_mask_text(hint)}」，候选: "
                      f"{[_mask_text(s) for s in seen[:10]]}，重触发 {reopens} 次")
+        _save_error_shot(self, "dropdown_missing")
         return False
     logger.info(f"[切号] 选中历史账号: {_mask_text(target.source or '')}")
     self.operator.click_box(target, after_sleep=2)  # 客户端自动回填记住的密码
@@ -759,17 +858,23 @@ def _handle_entered(self, target: str, state) -> int:
             logger.info("[切号] 游戏内 UID 与目标一致，沿用当前会话，跳过登出切号")
             _mark_verified(self, target)
             return int(state)
-    except Exception:
-        pass
+    except Exception as e:
+        # 停止信号必须上抛给 runner/task_process，否则会继续登出切号；其余异常仍降级走原流程
+        if _is_thread_stopped(e):
+            raise
     logger.info("[切号] 游戏已登录，登出后切到目标账号")
-    if _safe_logout(self) and _switch_by_history(self, target):
-        r = _wait_entered(self)
-        if r == 1:
-            _mark_verified(self, target)
-        return r
-    logger.error("[切号] 登出/切号失败，交由 AUTO-MAS 重试（不沿用可能错号的会话）")
-    _save_error_shot(self, "logout_switch_fail")
-    return -1
+    if not _safe_logout(self):
+        logger.error("[切号] 登出失败，交由 AUTO-MAS 重试（不沿用可能错号的会话）")
+        _save_error_shot(self, "logout_switch_fail")
+        return -1
+    if not _switch_by_history(self, target):
+        # 失败现场已由 _switch_by_history 留细粒度截图，这里不再重复截一张粗粒度图
+        logger.error("[切号] 切号失败，交由 AUTO-MAS 重试（不沿用可能错号的会话）")
+        return -1
+    r = _wait_entered(self)
+    if r == 1:
+        _mark_verified(self, target)
+    return r
 
 
 def _mas_switch_login(self, target: str) -> int:
@@ -806,8 +911,8 @@ def _mas_switch_login(self, target: str) -> int:
         if r == 1:
             _mark_verified(self, target)
         return r
+    # 两条失败路径（下拉无目标 / 确认键缺失）已各自留细粒度截图，这里不再叠加粗粒度图
     logger.error("[切号] 切号失败，交由 AUTO-MAS 重试")
-    _save_error_shot(self, "switch_fail")
     return -1
 
 
@@ -845,6 +950,8 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
                     _FLOW_LOGGED_AT = time.time()
                     return _switch_by_history(self, hint)
                 except Exception as e:
+                    if _is_thread_stopped(e):
+                        raise
                     _save_error_shot(self, "hint_switch_error")
                     logger.error(f"[切号] 切号流程异常，放弃自动登录: {e!r}")
                     return False
@@ -869,11 +976,19 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
             target = _load_hint()
             if target:
                 logger.info(f"[切号] 挂机模式：目标账号取 account_hint.txt → {_mask_text(target)}")
-        if not target or (self.config.StartGame.isAutoLogin and not overnight):
+        if not target:
+            if _MAS_CONTEXT_OK:
+                logger.error("[切号] MAS 花名册不可用，拒绝用记住的账号自动登录（防错号）")
+                _save_error_shot(self, "roster_unavailable")
+                return -1
+            return _orig_login(self)
+        if self.config.StartGame.isAutoLogin and not overnight:
             return _orig_login(self)
         try:
             return _mas_switch_login(self, target)
         except Exception as e:
+            if _is_thread_stopped(e):
+                raise
             _save_error_shot(self, "mas_switch_error")
             logger.error(f"[切号] 花名册切号流程异常: {e!r}，交由 AUTO-MAS 重试")
             return -1
@@ -887,8 +1002,12 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
             if r is not True:
                 return r
             try:
-                target = _mas_target() or _load_hint()
+                target = _uid_check_target()
                 if not target:
+                    if _MAS_CONTEXT_OK:
+                        logger.error("[切号] MAS 花名册不可用，无法确认目标账号，拒绝放行 UID 校验")
+                        _save_error_shot(self, "roster_unavailable")
+                        return False
                     return r
                 now = time.time()
                 fresh = 0 < _FLOW_LOGGED_AT <= now and now - _FLOW_LOGGED_AT <= _FLOW_WINDOW
@@ -921,6 +1040,8 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
                     _record_uid(self, target, got)
                 return r
             except Exception as e:
+                if _is_thread_stopped(e):
+                    raise
                 _save_error_shot(self, "uid_check_error")
                 logger.error(f"[切号] UID 校验流程异常: {e!r}")
                 return False
@@ -942,6 +1063,8 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
         try:
             return _laeg_with_uid(self, _retry_count + 1)
         except Exception as e:
+            if _is_thread_stopped(e):
+                raise
             logger.error(f"[切号] 重切流程异常: {e!r}，交由 AUTO-MAS 重试")
             return False
 
@@ -959,6 +1082,8 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
     StartGameTask._acct_match = staticmethod(_match)
     StartGameTask._mas_target = staticmethod(_mas_target)
     StartGameTask._mas_context = staticmethod(_mas_context)
+    StartGameTask._load_roster_info = staticmethod(_load_roster_info)
+    StartGameTask._uid_check_target = staticmethod(_uid_check_target)
     StartGameTask._decrypt_mas_id = staticmethod(_decrypt_mas_id)
     StartGameTask._ocr_shown_account = _ocr_shown_account
     StartGameTask._quick_login = _quick_login
@@ -979,6 +1104,6 @@ if StartGameTask is not None and not getattr(StartGameTask, "_zz_patched", False
     StartGameTask._mask_acct = staticmethod(_mask_acct)
     StartGameTask._mask_text = staticmethod(_mask_text)
     StartGameTask._zz_patched = True  # 幂等标记：防热重载/二次 import 后 _orig_login 捕获到已打补丁的方法
-    logger.info("[切号] 插件已启用 v2.6.7")
+    logger.info("[切号] 插件已启用 v2.6.9")
 elif StartGameTask is not None:
     logger.warning("[切号] 插件已挂载过，跳过重复加载")
