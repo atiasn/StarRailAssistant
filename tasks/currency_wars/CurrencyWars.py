@@ -96,7 +96,9 @@ class CurrencyWars(Executable):
             "头号玩家": ("我来当策划", self.handle_silver_wolf_lv999),
             "开拓银轨": ("开拓商店", self.handle_trailblaze_store),
             "奇兽花园": ("奇兽花园", self.handle_beast_garden),
-            "梦境交织": ("梦境交织", self.handle_dream_interference)
+            "梦境交织": ("梦境交织", self.handle_dream_interference),
+            "巡海游侠": ("巡海游侠", self.handle_sea_trader),
+            "黑市主理人": ("黑市主理人", self.handle_black_market_manager)
         }
         self.is_continue = False  # 是否是继续挑战
         self.is_game_over = False
@@ -574,11 +576,11 @@ class CurrencyWars(Executable):
                     self.sort_all_areas_by_priority()  # 优先级排序
                     continue
                 break
-            self.handle_special_event()
             if not self.stage_transition():
                 break
             if self.is_game_over:  # 任务已被标记为停止, 需要退出循环
                 break
+            self.handle_special_event()
             self.shopping()
 
             run_times += 1
@@ -1137,6 +1139,15 @@ class CurrencyWars(Executable):
         return self._handle_selection_event((0.22, 0.3, 0.85, 0.36),
                                             self.strategy_special_events.get("梦境交织", ""),
                                             count=2)
+
+    def handle_sea_trader(self):
+        """处理巡海游侠事件的逻辑"""
+        return self._handle_selection_event((0.22, 0.30, 0.85, 0.36),
+                                            self.strategy_special_events.get("巡海游侠", ""))
+
+    def handle_black_market_manager(self):
+        """处理黑市主理人事件的逻辑"""
+        return self.operator.press_key("esc")
 
     def detect_special_event(self) -> str:
         """检测当前是否有特殊事件发生，并返回事件名称"""
