@@ -55,19 +55,15 @@ public partial class ConsolePageViewModel : PageViewModel
         _backendService.StartBackend(Arguments);
         FilterOptions.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ConsoleLines));
         // 命令面板：导出日志
-        commandPalette.Register(new PaletteCommand(Resources.ExportLogsText, "console.exportLogs", PaletteCategory.Tools)
-        {
-            Execute = () => ExportLogsCommand.Execute(null)
-        });
-        commandPalette.Register(new PaletteCommand(Resources.DeveloperScreenshotText, "developer.screenshot",
-            PaletteCategory.Developer)
-        {
-            Execute = () => _ = CaptureScreenshotAsync()
-        });
-        commandPalette.Register(new PaletteCommand("开发人员：重载任务", "developer.reloadTask", PaletteCategory.Developer)
-        {
-            Execute = () => _ = ReloadTasksAsync()
-        });
+        commandPalette.Register(
+            new PaletteCommand("console.exportLogs", Resources.ExportLogsText, PaletteCategory.Tools),
+            () => ExportLogsCommand.Execute(null));
+        commandPalette.Register(
+            new PaletteCommand("developer.screenshot", Resources.DeveloperScreenshotText, PaletteCategory.Developer),
+            () => _ = CaptureScreenshotAsync());
+        commandPalette.Register(
+            new PaletteCommand("developer.reloadTask", "开发人员：重载任务", PaletteCategory.Developer),
+            () => _ = ReloadTasksAsync());
     }
 
     /// <summary>命令面板入口：保存一张游戏截图，失败时提示（命令面板不展示返回值）。</summary>
@@ -246,13 +242,16 @@ public partial class ConsolePageViewModel : PageViewModel
             var lines = _consoleLines.ToArray();
             File.WriteAllLines(Path.Combine(stagingDir, "console.log"), lines, Encoding.UTF8);
 
-            // 2. 前端日志文件（Serilog 按天滚动，包含错误日志与操作日志）
+            // 2. AI 分析指引（内嵌的 AGENTS.md）
+            WriteAnalysisGuide(stagingDir);
+
+            // 3. 前端日志文件（Serilog 按天滚动，包含错误日志与操作日志）
             var frontendCount = CopyLogFiles(DataPath.FrontendLogsDir, Path.Combine(stagingDir, "frontend"));
 
-            // 3. 后端日志文件
+            // 4. 后端日志文件
             var backendCount = CopyLogFiles(DataPath.BackendLogsDir, Path.Combine(stagingDir, "backend"));
 
-            // 4. 导出清单（JSON）
+            // 5. 导出清单（JSON）
             var manifest = new
             {
                 exportedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
@@ -280,7 +279,7 @@ public partial class ConsolePageViewModel : PageViewModel
                     new JsonSerializerOptions
                         { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
 
-            // 5. 压缩为ZIP
+            // 6. 压缩为ZIP
             if (File.Exists(targetZipPath)) File.Delete(targetZipPath);
             ZipFile.CreateFromDirectory(stagingDir, targetZipPath, CompressionLevel.Optimal, false);
 
@@ -298,6 +297,23 @@ public partial class ConsolePageViewModel : PageViewModel
                 _logger.LogWarning(e, "Failed to clean up log export staging directory: {StagingDir}", stagingDir);
             }
         }
+    }
+
+    /// <summary>
+    ///     把内嵌的 AGENTS.md 写入导出目录，作为 AI 分析日志时的项目结构与约定说明
+    /// </summary>
+    private void WriteAnalysisGuide(string stagingDir)
+    {
+        const string resourceName = "SRAFrontend.Assets.AGENTS.md";
+        using var source = typeof(AppSettings).Assembly.GetManifestResourceStream(resourceName);
+        if (source is null)
+        {
+            _logger.LogWarning("Embedded AGENTS.md not found: {ResourceName}", resourceName);
+            return;
+        }
+
+        using var target = File.Create(Path.Combine(stagingDir, "AGENTS.md"));
+        source.CopyTo(target);
     }
 
     /// <summary>
