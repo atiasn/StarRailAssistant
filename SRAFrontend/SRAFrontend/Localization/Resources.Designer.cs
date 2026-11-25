@@ -1187,6 +1187,42 @@ namespace SRAFrontend.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Skip shop refresh (buy current shop only, no reroll or level-up).
+        /// </summary>
+        public static string CurrencyWarsSkipShopRefreshText {
+            get {
+                return ResourceManager.GetString("CurrencyWarsSkipShopRefreshText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Skip applying strategy (do not paste the strategy code).
+        /// </summary>
+        public static string CurrencyWarsSkipApplyStrategyText {
+            get {
+                return ResourceManager.GetString("CurrencyWarsSkipApplyStrategyText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Skip crystal collection.
+        /// </summary>
+        public static string CurrencyWarsSkipHarvestCrystalsText {
+            get {
+                return ResourceManager.GetString("CurrencyWarsSkipHarvestCrystalsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Skip equipping gear automatically.
+        /// </summary>
+        public static string CurrencyWarsSkipEquipText {
+            get {
+                return ResourceManager.GetString("CurrencyWarsSkipEquipText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Plane 1 strategy 1, Plane 1 strategy 2; Plane 2 strategy 1, Plane 2 strategy 2.
         /// </summary>
         public static string CurrencyWarsStrategyExamplePlaceholder {
@@ -1772,6 +1808,15 @@ namespace SRAFrontend.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Enable multimodal vision.
+        /// </summary>
+        public static string EnableLlmVisionText {
+            get {
+                return ResourceManager.GetString("EnableLlmVisionText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Enable Overlay.
         /// </summary>
         public static string EnableOverlayText {
@@ -2341,15 +2386,6 @@ namespace SRAFrontend.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Hot update failed.
-        /// </summary>
-        public static string HotUpdateFailedError {
-            get {
-                return ResourceManager.GetString("HotUpdateFailedError", resourceCulture);
-            }
-        }
-
-        /// <summary>
         ///   Looks up a localized string similar to Press the keys to set a shortcut.
         /// </summary>
         public static string HotkeyCaptureHint {
@@ -2373,6 +2409,15 @@ namespace SRAFrontend.Localization {
         public static string HotUpdateAppliedMessage {
             get {
                 return ResourceManager.GetString("HotUpdateAppliedMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Hot update failed.
+        /// </summary>
+        public static string HotUpdateFailedError {
+            get {
+                return ResourceManager.GetString("HotUpdateFailedError", resourceCulture);
             }
         }
         
@@ -2647,6 +2692,69 @@ namespace SRAFrontend.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to API key.
+        /// </summary>
+        public static string LlmVisionApiKeyText {
+            get {
+                return ResourceManager.GetString("LlmVisionApiKeyText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to API base URL.
+        /// </summary>
+        public static string LlmVisionBaseUrlText {
+            get {
+                return ResourceManager.GetString("LlmVisionBaseUrlText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to In some scenarios, it is preferable to use interface element positioning based on multimodal large language model vision to enhance accuracy. However, this may result in increased costs..
+        /// </summary>
+        public static string LlmVisionDescriptionText {
+            get {
+                return ResourceManager.GetString("LlmVisionDescriptionText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Model.
+        /// </summary>
+        public static string LlmVisionModelText {
+            get {
+                return ResourceManager.GetString("LlmVisionModelText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Proxy URL.
+        /// </summary>
+        public static string LlmVisionProxyText {
+            get {
+                return ResourceManager.GetString("LlmVisionProxyText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to MLLM Vision.
+        /// </summary>
+        public static string LlmVisionText {
+            get {
+                return ResourceManager.GetString("LlmVisionText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Request timeout (seconds).
+        /// </summary>
+        public static string LlmVisionTimeoutText {
+            get {
+                return ResourceManager.GetString("LlmVisionTimeoutText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Loading configuration....
         /// </summary>
         public static string LoadingConfigurationMessage {
@@ -2725,33 +2833,6 @@ namespace SRAFrontend.Localization {
         public static string LogsExportedMessage {
             get {
                 return ResourceManager.GetString("LogsExportedMessage", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Enter the in-game Trailblazer name..
-        /// </summary>
-        public static string M0048 {
-            get {
-                return ResourceManager.GetString("M0048", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Number of matches to run this time..
-        /// </summary>
-        public static string M0050 {
-            get {
-                return ResourceManager.GetString("M0050", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Trailblazer name.
-        /// </summary>
-        public static string M0053 {
-            get {
-                return ResourceManager.GetString("M0053", resourceCulture);
             }
         }
         

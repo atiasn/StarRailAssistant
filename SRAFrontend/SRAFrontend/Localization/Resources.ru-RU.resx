@@ -1488,6 +1488,18 @@
     <data name="CurrencyWarsManualClearHint" xml:space="preserve">
         <value>Сначала пройдите режим вручную и закройте все обучающие подсказки</value>
     </data>
+    <data name="CurrencyWarsSkipShopRefreshText" xml:space="preserve">
+        <value>Не обновлять магазин (покупать только текущий ассортимент, без обновления и повышения уровня)</value>
+    </data>
+    <data name="CurrencyWarsSkipApplyStrategyText" xml:space="preserve">
+        <value>Не применять стратегию (не вставлять код стратегии)</value>
+    </data>
+    <data name="CurrencyWarsSkipHarvestCrystalsText" xml:space="preserve">
+        <value>Не собирать кристаллы</value>
+    </data>
+    <data name="CurrencyWarsSkipEquipText" xml:space="preserve">
+        <value>Не надевать снаряжение автоматически</value>
+    </data>
     <data name="AfterTasksCompleteText" xml:space="preserve">
         <value>После выполнения задач</value>
     </data>
@@ -1674,15 +1686,6 @@
     <data name="ScanFailedError" xml:space="preserve">
         <value>Ошибка сканирования: {e.Message}</value>
     </data>
-    <data name="M0048" xml:space="preserve">
-        <value>Введите имя Первопроходца точно как в игре.</value>
-    </data>
-    <data name="M0050" xml:space="preserve">
-        <value>Число партий за этот запуск.</value>
-    </data>
-    <data name="M0053" xml:space="preserve">
-        <value>Имя Первопроходца</value>
-    </data>
     <data name="RussianLanguageName" xml:space="preserve">
         <value>Русский</value>
     </data>
@@ -1724,5 +1727,29 @@
     </data>
     <data name="EnablePointRewardsToolTip" xml:space="preserve">
         <value>при достижении недельного лимита баллов пропустить это задание.</value>
+    </data>
+    <data name="LlmVisionText" xml:space="preserve">
+        <value>Мультимодальное зрение</value>
+    </data>
+    <data name="EnableLlmVisionText" xml:space="preserve">
+        <value>Включить мультимодальное зрение</value>
+    </data>
+    <data name="LlmVisionDescriptionText" xml:space="preserve">
+        <value>Искать элементы мультимодальной моделью, если сопоставление шаблона не удалось</value>
+    </data>
+    <data name="LlmVisionBaseUrlText" xml:space="preserve">
+        <value>Адрес API</value>
+    </data>
+    <data name="LlmVisionModelText" xml:space="preserve">
+        <value>Модель</value>
+    </data>
+    <data name="LlmVisionApiKeyText" xml:space="preserve">
+        <value>API-ключ</value>
+    </data>
+    <data name="LlmVisionTimeoutText" xml:space="preserve">
+        <value>Таймаут запроса (с)</value>
+    </data>
+    <data name="LlmVisionProxyText" xml:space="preserve">
+        <value>Адрес прокси</value>
     </data>
 </root>
