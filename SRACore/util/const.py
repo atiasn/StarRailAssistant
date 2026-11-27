@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 # 基础的常量定义
-VERSION = "2.28.0-beta.1"  # 版本号
+VERSION = "2.28.0-beta.2"  # 版本号
 CORE = f"{VERSION} on {sys.platform}"  # 核心版本信息
 
 AppRootDir = Path(__file__).parent.parent.parent.absolute()
@@ -32,3 +32,5 @@ CacheDir = AppDataDir / "cache"
 LogsDir = Path("log").absolute()
 LogsOCRDir = LogsDir / "ocr"
 LogsScreenshotDir = LogsDir / "screenshot"
+# 云游戏扫码登录的二维码图片，操作器写入、服务端接口读取
+QrcodeLoginImage = LogsDir / "qrcode_login.png"
